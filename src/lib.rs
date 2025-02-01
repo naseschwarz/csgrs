@@ -2012,6 +2012,7 @@ impl<S: Clone> CSG<S> {
 
         let edges_bottom = bottom_polys
             .iter()
+            .filter(|poly| poly.vertices.len() >= 3)
             .flat_map(|poly| {
                 let tri = poly.triangulate();
                 [
@@ -2022,52 +2023,54 @@ impl<S: Clone> CSG<S> {
             })
             .collect::<Vec<_>>();
 
-        let hull_edges_bottom = edges_bottom.iter().filter(|edge| true).collect::<Vec<_>>(); // todo
+        let hull_edges_bottom = edges_bottom
+            .iter()
+            .flatten()
+            .filter(|edge| true)
+            .collect::<Vec<_>>(); // todo
 
         for hull_edge_bottom in hull_edges_bottom {
-            // TODO:
-            //let vcount = poly_bottom.vertices.len();
-            //if vcount < 3 {
-            //    continue; // skip degenerate or empty polygons
-            //}
+            let poly_bottom = Polygon::<S>::new(
+                vec![hull_edge_bottom[0].clone(), hull_edge_bottom[1].clone()],
+                None,
+            );
+            let poly_top = poly_bottom.translate(direction);
+            let b_i = &poly_bottom.vertices[0];
+            let b_j = &poly_bottom.vertices[1];
+            let t_i = &poly_top.vertices[0];
+            let t_j = &poly_top.vertices[1];
 
-            let side_poly = Polygon::new(vec![], None);
+            // Build a side quad [b_i, b_j, t_j, t_i].
+            // Then push it as a new polygon.
+            let side_poly = Polygon::new(
+                vec![b_i.clone(), b_j.clone(), t_j.clone(), t_i.clone()],
+                None,
+            );
             new_polygons.push(side_poly);
-            //for i in 0..vcount {
-            //    let j = (i + 1) % vcount; // next index, wrapping around
-            //    let b_i = &poly_bottom.vertices[i];
-            //    let b_j = &poly_bottom.vertices[j];
-            //    let t_i = &poly_top.vertices[i];
-            //    let t_j = &poly_top.vertices[j];
-
-            //    // Build a side quad [b_i, b_j, t_j, t_i].
-            //    // Then push it as a new polygon.
-            //    let side_poly = Polygon::new(
-            //        vec![b_i.clone(), b_j.clone(), t_j.clone(), t_i.clone()],
-            //        None,
-            //    );
-            //    new_polygons.push(side_poly);
-            //}
         }
 
         // Combine into a new CSG
         CSG::from_polygons(new_polygons)
     }
-    
+
     /// Extrudes (or "lofts") a closed 3D volume between two polygons in space.
     /// - `bottom` and `top` each have the same number of vertices `n`, in matching order.
     /// - Returns a new CSG whose faces are:
     ///   - The `bottom` polygon,
     ///   - The `top` polygon,
     ///   - `n` rectangular side polygons bridging each edge of `bottom` to the corresponding edge of `top`.
-    pub fn extrude_between(bottom: &Polygon<S>, top: &Polygon<S>, flip_bottom_polygon: bool) -> CSG<S> {
+    pub fn extrude_between(
+        bottom: &Polygon<S>,
+        top: &Polygon<S>,
+        flip_bottom_polygon: bool,
+    ) -> CSG<S> {
         let n = bottom.vertices.len();
         assert_eq!(
             n,
             top.vertices.len(),
             "extrude_between: both polygons must have the same number of vertices"
         );
-    
+
         // Conditionally flip the bottom polygon if requested.
         let bottom_poly = if flip_bottom_polygon {
             let mut flipped = bottom.clone();
