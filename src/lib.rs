@@ -2009,29 +2009,47 @@ impl<S: Clone> CSG<S> {
         //    That is, a quad [b_i, b_j, t_j, t_i].
         let bottom_polys = &self.polygons;
         let top_polys = &top_polygons;
-    
-        for (poly_bottom, poly_top) in bottom_polys.iter().zip(top_polys.iter()) {
-            let vcount = poly_bottom.vertices.len();
-            if vcount < 3 {
-                continue; // skip degenerate or empty polygons
-            }
-            for i in 0..vcount {
-                let j = (i + 1) % vcount; // next index, wrapping around
-                let b_i = &poly_bottom.vertices[i];
-                let b_j = &poly_bottom.vertices[j];
-                let t_i = &poly_top.vertices[i];
-                let t_j = &poly_top.vertices[j];
-    
-                // Build a side quad [b_i, b_j, t_j, t_i].
-                // Then push it as a new polygon.
-                let side_poly = Polygon::new(
-                    vec![b_i.clone(), b_j.clone(), t_j.clone(), t_i.clone()],
-                    None
-                );
-                new_polygons.push(side_poly);
-            }
+
+        let edges_bottom = bottom_polys
+            .iter()
+            .flat_map(|poly| {
+                let tri = poly.triangulate();
+                [
+                    [tri[0].clone(), tri[1].clone()],
+                    [tri[1].clone(), tri[2].clone()],
+                    [tri[2].clone(), tri[0].clone()],
+                ]
+            })
+            .collect::<Vec<_>>();
+
+        let hull_edges_bottom = edges_bottom.iter().filter(|edge| true).collect::<Vec<_>>(); // todo
+
+        for hull_edge_bottom in hull_edges_bottom {
+            // TODO:
+            //let vcount = poly_bottom.vertices.len();
+            //if vcount < 3 {
+            //    continue; // skip degenerate or empty polygons
+            //}
+
+            let side_poly = Polygon::new(vec![], None);
+            new_polygons.push(side_poly);
+            //for i in 0..vcount {
+            //    let j = (i + 1) % vcount; // next index, wrapping around
+            //    let b_i = &poly_bottom.vertices[i];
+            //    let b_j = &poly_bottom.vertices[j];
+            //    let t_i = &poly_top.vertices[i];
+            //    let t_j = &poly_top.vertices[j];
+
+            //    // Build a side quad [b_i, b_j, t_j, t_i].
+            //    // Then push it as a new polygon.
+            //    let side_poly = Polygon::new(
+            //        vec![b_i.clone(), b_j.clone(), t_j.clone(), t_i.clone()],
+            //        None,
+            //    );
+            //    new_polygons.push(side_poly);
+            //}
         }
-    
+
         // Combine into a new CSG
         CSG::from_polygons(new_polygons)
     }
