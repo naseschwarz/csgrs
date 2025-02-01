@@ -2008,42 +2008,36 @@ impl<S: Clone> CSG<S> {
         //    we form a rectangular side quad with (v[i]+direction, v[i+1]+direction).
         //    That is, a quad [b_i, b_j, t_j, t_i].
         let bottom_polys = &self.polygons;
-        let top_polys = &top_polygons;
 
-        let edges_bottom = bottom_polys
-            .iter()
-            .filter(|poly| poly.vertices.len() >= 3)
-            .flat_map(|poly| {
-                let tri = poly.triangulate();
-                [
-                    [tri[0].clone(), tri[1].clone()],
-                    [tri[1].clone(), tri[2].clone()],
-                    [tri[2].clone(), tri[0].clone()],
-                ]
-            })
-            .collect::<Vec<_>>();
+        let edges_bottom = bottom_polys.iter().flat_map(|poly| {
+            poly.triangulate()
+                .iter()
+                .map(|tri| {
+                    vec![
+                        [tri[0].clone(), tri[1].clone()],
+                        [tri[1].clone(), tri[2].clone()],
+                        [tri[2].clone(), tri[0].clone()],
+                    ]
+                })
+                .collect::<Vec<_>>()
+        });
+        eprintln!("{}", edges_bottom.clone().count());
+        let edges_bottom = edges_bottom.collect::<Vec<_>>();
 
         let hull_edges_bottom = edges_bottom
             .iter()
             .flatten()
-            .filter(|edge| true)
+            .filter(|edge| true /* todo: Filter via hashmap */)
             .collect::<Vec<_>>(); // todo
 
         for hull_edge_bottom in hull_edges_bottom {
-            let poly_bottom = Polygon::<S>::new(
-                vec![hull_edge_bottom[0].clone(), hull_edge_bottom[1].clone()],
-                None,
-            );
-            let poly_top = poly_bottom.translate(direction);
-            let b_i = &poly_bottom.vertices[0];
-            let b_j = &poly_bottom.vertices[1];
-            let t_i = &poly_top.vertices[0];
-            let t_j = &poly_top.vertices[1];
-
-            // Build a side quad [b_i, b_j, t_j, t_i].
-            // Then push it as a new polygon.
             let side_poly = Polygon::new(
-                vec![b_i.clone(), b_j.clone(), t_j.clone(), t_i.clone()],
+                vec![
+                    hull_edge_bottom[0].clone(),
+                    hull_edge_bottom[1].clone(),
+                    Vertex::new(hull_edge_bottom[1].pos + direction, hull_edge_bottom[1].normal),
+                    Vertex::new(hull_edge_bottom[0].pos + direction, hull_edge_bottom[0].normal),
+                ],
                 None,
             );
             new_polygons.push(side_poly);
